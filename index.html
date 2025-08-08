@@ -1,0 +1,1323 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VOVC Voice Interviewer</title>
+    <style>
+        :root {
+            --primary: #2563eb;
+            --success: #059669;
+            --error: #dc2626;
+            --warning: #d97706;
+            --bg-primary: #ffffff;
+            --bg-secondary: #f8fafc;
+            --text-primary: #1f2937;
+            --text-secondary: #6b7280;
+            --border: #e5e7eb;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: var(--bg-primary);
+            border-radius: 16px;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+            padding: 2rem;
+            max-width: 600px;
+            width: 100%;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+
+        .header h1 {
+            color: var(--text-primary);
+            font-size: 2rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+        }
+
+        .setup-section {
+            margin-bottom: 2rem;
+        }
+
+        .input-group {
+            margin-bottom: 1rem;
+        }
+
+        .input-group label {
+            display: block;
+            color: var(--text-primary);
+            font-weight: 500;
+            margin-bottom: 0.5rem;
+        }
+
+        .input-group input, .input-group select, .input-group textarea {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 1rem;
+        }
+
+        .input-group textarea {
+            resize: vertical;
+            min-height: 120px;
+            font-family: inherit;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            gap: 0.5rem;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+        }
+
+        .btn-secondary {
+            background: var(--bg-secondary);
+            color: var(--text-primary);
+            border: 1px solid var(--border);
+        }
+
+        .btn-error {
+            background: var(--error);
+            color: white;
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .btn-full {
+            width: 100%;
+        }
+
+        .status {
+            padding: 0.75rem;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+            font-weight: 500;
+        }
+
+        .status-success {
+            background: #dcfce7;
+            color: var(--success);
+        }
+
+        .status-error {
+            background: #fef2f2;
+            color: var(--error);
+        }
+
+        .status-info {
+            background: #dbeafe;
+            color: var(--primary);
+        }
+
+        .controls {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .conversation-log {
+            max-height: 300px;
+            overflow-y: auto;
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 1rem;
+            background: var(--bg-secondary);
+            margin-bottom: 1rem;
+            font-size: 0.875rem;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        .recording-indicator {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            padding: 1rem;
+            background: var(--bg-secondary);
+            border-radius: 8px;
+            margin-bottom: 1rem;
+        }
+
+        .pulse {
+            width: 12px;
+            height: 12px;
+            background: var(--error);
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.7); }
+            70% { transform: scale(1); box-shadow: 0 0 0 10px rgba(220, 38, 38, 0); }
+            100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(220, 38, 38, 0); }
+        }
+
+        .transcript-section {
+            margin-top: 2rem;
+            padding-top: 2rem;
+            border-top: 1px solid var(--border);
+        }
+
+        .transcript-content {
+            max-height: 300px;
+            overflow-y: auto;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 1rem;
+            white-space: pre-wrap;
+            font-family: monospace;
+            font-size: 0.875rem;
+            margin-bottom: 1rem;
+        }
+
+        .api-info {
+            background: #f0f9ff;
+            border: 1px solid #bae6fd;
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .api-info h3 {
+            color: var(--primary);
+            font-size: 1rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+
+        .api-info p {
+            color: var(--text-secondary);
+            font-size: 0.875rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .api-info a {
+            color: var(--primary);
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎙️ VOVC Voice Interviewer</h1>
+            <p>Model: Gemini-2.0-Flash Live</p>
+        </div>
+
+        <div id="setupSection" class="setup-section">
+            <div class="api-info">
+                <h3>📋 Setup Instructions</h3>
+                <p>1. Get your API key from <a href="https://aistudio.google.com/app/apikey" target="_blank">Google AI Studio</a></p>
+                <p>2. Turn off ZScaler (Prevents SSL cert errors)</p>
+                <p>3. Allow microphone access when prompted</p>
+                <p>4. Load/Enter your custom prompt</p>
+            </div>
+
+            <div class="input-group">
+                <label for="apiKey">Google Gemini API Key</label>
+                <input type="password" id="apiKey" placeholder="Enter your Gemini API key...">
+            </div>
+
+            <div class="input-group">
+                <label for="voiceSelect">Assistant Voice</label>
+                <select id="voiceSelect">
+                    <option value="Puck">Puck</option>
+                    <option value="Charon">Charon</option>
+                    <option value="Kore">Kore</option>
+                    <option value="Fenrir">Fenrir</option>
+                    <option value="Aoede">Aoede</option>
+                    <option value="Leda">Leda</option>
+                    <option value="Orus">Orus</option>
+                    <option value="Zephyr">Zephyr</option>
+                </select>
+            </div>
+
+            <div class="input-group">
+                <label for="initialPrompt">Initial System Prompt</label>
+                <textarea id="initialPrompt" placeholder="Enter your initial prompt...">You are an AI interviewer asking passengers of an arline to about their travel preferences. Speak naturally and conversationally in a friendly tone. Keep responses concise but informative.</textarea>
+                <div style="margin-top: 0.5rem;">
+                    <input type="file" id="promptFile" accept=".txt" style="display: none;">
+                    <button type="button" id="loadPromptBtn" class="btn btn-secondary" style="font-size: 0.875rem; padding: 0.5rem 1rem;">
+                        📁 Load from File
+                    </button>
+                    <button type="button" id="clearPromptBtn" class="btn btn-secondary" style="font-size: 0.875rem; padding: 0.5rem 1rem; margin-left: 0.5rem;">
+                        🗑️ Clear
+                    </button>
+                </div>
+            </div>
+
+            <button id="startBtn" class="btn btn-primary btn-full">
+                🚀 Start Voice Interview
+            </button>
+        </div>
+
+        <div id="mainInterface" class="hidden">
+            <div id="statusDisplay" class="status status-info">
+                🔄 Initializing...
+            </div>
+
+            <div id="recordingIndicator" class="recording-indicator hidden">
+                <div class="pulse"></div>
+                <span>Listening...</span>
+            </div>
+
+            <div class="controls">
+                <button id="transcriptBtn" class="btn btn-secondary">
+                    📋 View Live Transcript
+                </button>
+                <button id="stopBtn" class="btn btn-error">
+                    ⏹️ Stop Session
+                </button>
+            </div>
+
+            <div class="conversation-log" id="conversationLog"></div>
+
+            <div class="transcript-section hidden" id="transcriptSection">
+                <h3>📋 Live Conversation Transcript</h3>
+                <div class="transcript-content" id="transcriptContent"></div>
+                <button id="downloadTranscript" class="btn btn-secondary">
+                    💾 Download Transcript
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        const CONFIG = {
+            SEND_SAMPLE_RATE: 16000,
+            RECEIVE_SAMPLE_RATE: 24000,
+            CHANNELS: 1,
+            INPUT_CHUNK_SIZE: 1024,
+            OUTPUT_CHUNK_SIZE: 2048,
+            MODEL: "models/gemini-2.0-flash-live-001"
+        };
+
+        const state = {
+            websocket: null,
+            isListening: true,
+            isSpeaking: false,
+            isTranscribing: false,
+            conversationLog: [],
+            audioOutputQueue: [],
+            shutdownRequested: false,
+            liveTranscript: [],
+            transcriptionActive: true,
+            currentUserBuffer: "",
+            currentGeminiBuffer: "",
+            lastUserUpdate: 0,
+            lastGeminiUpdate: 0,
+            bufferTimeout: 2000
+        };
+
+        const elements = {
+            setupSection: document.getElementById('setupSection'),
+            mainInterface: document.getElementById('mainInterface'),
+            apiKey: document.getElementById('apiKey'),
+            voiceSelect: document.getElementById('voiceSelect'),
+            initialPrompt: document.getElementById('initialPrompt'),
+            promptFile: document.getElementById('promptFile'),
+            loadPromptBtn: document.getElementById('loadPromptBtn'),
+            clearPromptBtn: document.getElementById('clearPromptBtn'),
+            startBtn: document.getElementById('startBtn'),
+            statusDisplay: document.getElementById('statusDisplay'),
+            recordingIndicator: document.getElementById('recordingIndicator'),
+            transcriptBtn: document.getElementById('transcriptBtn'),
+            stopBtn: document.getElementById('stopBtn'),
+            conversationLog: document.getElementById('conversationLog'),
+            transcriptSection: document.getElementById('transcriptSection'),
+            transcriptContent: document.getElementById('transcriptContent'),
+            downloadTranscript: document.getElementById('downloadTranscript')
+        };
+
+        function showStatus(message, type = 'info') {
+            elements.statusDisplay.textContent = message;
+            elements.statusDisplay.className = `status status-${type}`;
+        }
+
+        function addMessage(speaker, message) {
+            const timestamp = new Date().toLocaleTimeString();
+            const logEntry = `[${timestamp}] ${speaker}: ${message}`;
+            state.conversationLog.push(logEntry);
+            
+            elements.conversationLog.innerHTML = state.conversationLog
+                .slice(-10)
+                .map(entry => `<div>${entry}</div>`)
+                .join('');
+            elements.conversationLog.scrollTop = elements.conversationLog.scrollHeight;
+        }
+
+        function addToTranscriptBuffered(speaker, textChunk) {
+            if (!state.transcriptionActive) return;
+            
+            const currentTime = Date.now();
+            
+            if (speaker === "USER") {
+                if (textChunk.trim()) {
+                    state.currentUserBuffer += textChunk;
+                    state.lastUserUpdate = currentTime;
+                }
+            } else if (speaker === "INTERVIEWER") {
+                if (textChunk.trim()) {
+                    state.currentGeminiBuffer += textChunk;
+                    state.lastGeminiUpdate = currentTime;
+                }
+            }
+        }
+
+        function finalizeBufferedTranscripts() {
+            const currentTime = Date.now();
+            
+            if (state.currentUserBuffer.trim() && 
+                currentTime - state.lastUserUpdate > state.bufferTimeout) {
+                addToTranscript("USER", state.currentUserBuffer.trim());
+                state.currentUserBuffer = "";
+            }
+            
+            if (state.currentGeminiBuffer.trim() && 
+                currentTime - state.lastGeminiUpdate > state.bufferTimeout) {
+                addToTranscript("INTERVIEWER", state.currentGeminiBuffer.trim());
+                state.currentGeminiBuffer = "";
+            }
+        }
+
+        function addToTranscript(speaker, text) {
+            const timestamp = new Date().toLocaleTimeString();
+            const entry = `[${timestamp}] ${speaker}: ${text}`;
+            state.liveTranscript.push(entry);
+            addMessage(speaker, text);
+        }
+
+        function saveApiKey(key) {
+            localStorage.setItem('gemini_api_key', key);
+        }
+
+        function loadApiKey() {
+            const saved = localStorage.getItem('gemini_api_key');
+            if (saved) {
+                elements.apiKey.value = saved;
+            }
+        }
+
+        function savePrompt(prompt) {
+            localStorage.setItem('gemini_initial_prompt', prompt);
+        }
+
+        function loadPrompt() {
+            const saved = localStorage.getItem('gemini_initial_prompt');
+            if (saved) {
+                elements.initialPrompt.value = saved;
+            }
+        }
+
+        function handlePromptChange() {
+            const prompt = elements.initialPrompt.value.trim();
+            if (prompt) {
+                savePrompt(prompt);
+            }
+        }
+
+        function loadPromptFromFile() {
+            elements.promptFile.click();
+        }
+
+        function handlePromptFile(event) {
+            const file = event.target.files[0];
+            if (file && file.type === 'text/plain') {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    elements.initialPrompt.value = e.target.result;
+                    savePrompt(e.target.result); // Auto-save loaded prompt
+                    showStatus('✅ Prompt loaded and saved', 'success');
+                    setTimeout(() => showStatus('Ready to start', 'info'), 2000);
+                };
+                reader.readAsText(file);
+            } else {
+                showStatus('❌ Please select a valid .txt file', 'error');
+            }
+        }
+
+        function clearPrompt() {
+            const defaultPrompt = "";
+            elements.initialPrompt.value = defaultPrompt;
+            savePrompt(defaultPrompt);
+            showStatus('✅ Prompt reset to default', 'success');
+            setTimeout(() => showStatus('Ready to start', 'info'), 2000);
+        }
+
+        class AudioManager {
+            constructor() {
+                this.audioContext = null;
+                this.playbackContext = null;
+                this.stream = null;
+                this.audioOutputBuffer = [];
+                this.isPlaying = false;
+                this.nextPlayTime = 0;
+            }
+
+            async initialize() {
+                try {
+                    this.stream = await navigator.mediaDevices.getUserMedia({
+                        audio: {
+                            sampleRate: CONFIG.SEND_SAMPLE_RATE,
+                            channelCount: CONFIG.CHANNELS,
+                            echoCancellation: true,
+                            noiseSuppression: true
+                        }
+                    });
+
+                    this.audioContext = new (window.AudioContext || window.webkitAudioContext)({
+                        sampleRate: CONFIG.SEND_SAMPLE_RATE
+                    });
+
+                    await this.setupPCMCapture();
+                    return true;
+                } catch (error) {
+                    showStatus('❌ Failed to access microphone', 'error');
+                    return false;
+                }
+            }
+
+            async setupPCMCapture() {
+                const source = this.audioContext.createMediaStreamSource(this.stream);
+                const bufferSize = CONFIG.INPUT_CHUNK_SIZE;
+                this.scriptProcessor = this.audioContext.createScriptProcessor(bufferSize, 1, 1);
+                
+                this.scriptProcessor.onaudioprocess = (event) => {
+                    if (state.isListening && !state.isSpeaking && !state.isTranscribing) {
+                        const inputBuffer = event.inputBuffer;
+                        const channelData = inputBuffer.getChannelData(0);
+                        
+                        const pcmBuffer = new ArrayBuffer(channelData.length * 2);
+                        const pcmView = new Int16Array(pcmBuffer);
+                        
+                        for (let i = 0; i < channelData.length; i++) {
+                            pcmView[i] = Math.max(-32768, Math.min(32767, Math.round(channelData[i] * 32767)));
+                        }
+                        
+                        this.sendPCMData(pcmBuffer);
+                    }
+                };
+                
+                source.connect(this.scriptProcessor);
+                this.scriptProcessor.connect(this.audioContext.destination);
+            }
+
+            sendPCMData(pcmBuffer) {
+                if (state.websocket && state.websocket.readyState === WebSocket.OPEN) {
+                    try {
+                        const uint8Array = new Uint8Array(pcmBuffer);
+                        const binary = Array.from(uint8Array)
+                            .map(byte => String.fromCharCode(byte))
+                            .join('');
+                        const base64Data = btoa(binary);
+
+                        const message = {
+                            realtimeInput: {
+                                mediaChunks: [{
+                                    mimeType: "audio/pcm",
+                                    data: base64Data
+                                }]
+                            }
+                        };
+
+                        state.websocket.send(JSON.stringify(message));
+                    } catch (error) {
+                        console.error("Error sending PCM:", error);
+                    }
+                }
+            }
+
+            startListening() {
+                if (this.audioContext && this.scriptProcessor) {
+                    elements.recordingIndicator.classList.remove('hidden');
+                }
+            }
+
+            stopListening() {
+                if (this.scriptProcessor) {
+                    this.scriptProcessor.disconnect();
+                    elements.recordingIndicator.classList.add('hidden');
+                }
+            }
+
+            async playAudio(audioData) {
+                try {
+                    if (!audioData || audioData.byteLength === 0) return;
+                    if (state.isTranscribing) return;
+
+                    this.audioOutputBuffer.push(audioData);
+                    
+                    if (!this.isPlaying) {
+                        this.startContinuousPlayback();
+                    }
+                } catch (error) {
+                    console.error("Error buffering audio:", error);
+                }
+            }
+
+            async startContinuousPlayback() {
+                if (this.isPlaying) return;
+                
+                try {
+                    this.isPlaying = true;
+                    
+                    if (!this.playbackContext) {
+                        this.playbackContext = new (window.AudioContext || window.webkitAudioContext)({
+                            sampleRate: 24000
+                        });
+                    }
+
+                    if (this.playbackContext.state === 'suspended') {
+                        await this.playbackContext.resume();
+                    }
+
+                    this.nextPlayTime = this.playbackContext.currentTime;
+                    this.processAudioBuffer();
+                } catch (error) {
+                    this.isPlaying = false;
+                }
+            }
+
+            async processAudioBuffer() {
+                while (this.isPlaying) {
+                    if (this.audioOutputBuffer.length > 0) {
+                        const audioData = this.audioOutputBuffer.shift();
+                        await this.playAudioChunk(audioData);
+                    } else {
+                        await new Promise(resolve => setTimeout(resolve, 100));
+                        if (this.audioOutputBuffer.length === 0) {
+                            this.isPlaying = false;
+                            state.isSpeaking = false;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            async playAudioChunk(audioData) {
+                try {
+                    // Try standard audio format first
+                    try {
+                        const audioBuffer = await this.playbackContext.decodeAudioData(audioData.slice());
+                        const source = this.playbackContext.createBufferSource();
+                        source.buffer = audioBuffer;
+                        source.connect(this.playbackContext.destination);
+                        
+                        const startTime = Math.max(this.nextPlayTime, this.playbackContext.currentTime);
+                        source.start(startTime);
+                        this.nextPlayTime = startTime + audioBuffer.duration;
+                        
+                        state.isSpeaking = true;
+                        return;
+                    } catch (standardError) {
+                        // Continue to PCM formats
+                    }
+                    
+                    // Try PCM formats
+                    const formats = [
+                        { sampleRate: 24000, format: 'int16' },
+                        { sampleRate: 16000, format: 'int16' },
+                        { sampleRate: 22050, format: 'int16' },
+                        { sampleRate: 8000, format: 'int16' },
+                        { sampleRate: 24000, format: 'float32' },
+                        { sampleRate: 24000, format: 'uint8' }
+                    ];
+                    
+                    for (const fmt of formats) {
+                        try {
+                            let audioBuffer;
+                            
+                            if (fmt.format === 'int16') {
+                                if (audioData.byteLength % 2 !== 0) continue;
+                                const numSamples = audioData.byteLength / 2;
+                                if (numSamples < 10) continue;
+                                
+                                audioBuffer = this.playbackContext.createBuffer(1, numSamples, fmt.sampleRate);
+                                const channelData = audioBuffer.getChannelData(0);
+                                const pcmData = new Int16Array(audioData);
+                                
+                                for (let i = 0; i < numSamples; i++) {
+                                    channelData[i] = pcmData[i] / 32768.0;
+                                }
+                            } else if (fmt.format === 'float32') {
+                                if (audioData.byteLength % 4 !== 0) continue;
+                                const numSamples = audioData.byteLength / 4;
+                                if (numSamples < 10) continue;
+                                
+                                audioBuffer = this.playbackContext.createBuffer(1, numSamples, fmt.sampleRate);
+                                const channelData = audioBuffer.getChannelData(0);
+                                const floatData = new Float32Array(audioData);
+                                
+                                for (let i = 0; i < numSamples; i++) {
+                                    channelData[i] = floatData[i];
+                                }
+                            } else if (fmt.format === 'uint8') {
+                                const numSamples = audioData.byteLength;
+                                if (numSamples < 10) continue;
+                                
+                                audioBuffer = this.playbackContext.createBuffer(1, numSamples, fmt.sampleRate);
+                                const channelData = audioBuffer.getChannelData(0);
+                                const uint8Data = new Uint8Array(audioData);
+                                
+                                for (let i = 0; i < numSamples; i++) {
+                                    channelData[i] = (uint8Data[i] - 128) / 128.0;
+                                }
+                            }
+                            
+                            const source = this.playbackContext.createBufferSource();
+                            source.buffer = audioBuffer;
+                            source.connect(this.playbackContext.destination);
+                            
+                            const startTime = Math.max(this.nextPlayTime, this.playbackContext.currentTime);
+                            source.start(startTime);
+                            this.nextPlayTime = startTime + audioBuffer.duration;
+                            
+                            state.isSpeaking = true;
+                            break;
+                        } catch (pcmError) {
+                            continue;
+                        }
+                    }
+                } catch (error) {
+                    console.error("Error playing audio chunk:", error);
+                }
+            }
+        }
+
+        class GeminiLiveClient {
+            constructor(apiKey, voice, systemPrompt) {
+                this.apiKey = apiKey;
+                this.voice = voice;
+                this.systemPrompt = systemPrompt;
+                this.audioManager = new AudioManager();
+            }
+
+            async connect() {
+                try {
+                    showStatus('🔄 Connecting to Gemini Live...', 'info');
+
+                    const audioReady = await this.audioManager.initialize();
+                    if (!audioReady) return false;
+
+                    const wsUrl = `wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContent?key=${this.apiKey}`;
+                    state.websocket = new WebSocket(wsUrl);
+
+                    return new Promise((resolve, reject) => {
+                        const timeout = setTimeout(() => {
+                            reject(new Error('Connection timeout'));
+                        }, 10000);
+
+                        state.websocket.onopen = () => {
+                            clearTimeout(timeout);
+                            
+                            const setupMessage = {
+                                setup: {
+                                    model: CONFIG.MODEL,
+                                    generationConfig: {
+                                        responseModalities: ["AUDIO"],
+                                        speechConfig: {
+                                            voiceConfig: {
+                                                prebuiltVoiceConfig: {
+                                                    voiceName: this.voice
+                                                }
+                                            }
+                                        }
+                                    },
+                                    systemInstruction: {
+                                        parts: [{
+                                            text: this.systemPrompt
+                                        }]
+                                    },
+                                    inputAudioTranscription: {},
+                                    outputAudioTranscription: {}
+                                }
+                            };
+
+                            state.websocket.send(JSON.stringify(setupMessage));
+
+                            showStatus('✅ Connected! Start talking...', 'success');
+                            addMessage('SYSTEM', 'Assistant connected with live transcription');
+
+                            // Send initial prompt as user message (like Python send_initial_prompt)
+                            setTimeout(() => {
+                                this.sendInitialPrompt();
+                            }, 1000);
+
+                            this.startListening();
+                            this.setupMessageHandling();
+
+                            resolve(true);
+                        };
+
+                        state.websocket.onerror = (error) => {
+                            clearTimeout(timeout);
+                            showStatus('❌ Connection failed', 'error');
+                            reject(error);
+                        };
+
+                        state.websocket.onclose = (event) => {
+                            if (event.code === 1000) {
+                                showStatus('🔌 Session ended normally', 'info');
+                            } else if (event.code === 1006) {
+                                showStatus('❌ Connection lost unexpectedly', 'error');
+                            } else if (event.code === 1007) {
+                                showStatus('❌ Invalid audio format sent', 'error');
+                            } else if (event.code === 1008) {
+                                showStatus('❌ Policy violation or invalid API key', 'error');
+                            } else {
+                                showStatus(`❌ Connection closed (${event.code})`, 'error');
+                            }
+                        };
+                    });
+                } catch (error) {
+                    showStatus('❌ Connection failed: ' + error.message, 'error');
+                    return false;
+                }
+            }
+
+            async sendInitialPrompt() {
+                try {
+                    if (state.websocket && state.websocket.readyState === WebSocket.OPEN) {
+                        const initialMessage = {
+                            clientContent: {
+                                turns: [{
+                                    role: "user",
+                                    parts: [{
+                                        text: this.systemPrompt
+                                    }]
+                                }],
+                                turnComplete: true
+                            }
+                        };
+
+                        state.websocket.send(JSON.stringify(initialMessage));
+                        addMessage('SYSTEM', 'Initial prompt sent - AI should respond soon');
+                    }
+                } catch (error) {
+                    console.error("Error sending initial prompt:", error);
+                }
+            }
+
+            setupMessageHandling() {
+                state.websocket.onmessage = async (event) => {
+                    try {
+                        if (typeof event.data === 'string') {
+                            const data = JSON.parse(event.data);
+                            this.handleJsonData(data);
+                            return;
+                        }
+
+                        if (event.data instanceof ArrayBuffer) {
+                            const firstBytes = new Uint8Array(event.data.slice(0, 4));
+                            const isJson = firstBytes[0] === 0x7b;
+                            
+                            if (isJson) {
+                                const jsonString = new TextDecoder().decode(event.data);
+                                const data = JSON.parse(jsonString);
+                                this.handleJsonData(data);
+                                return;
+                            }
+                            
+                            await this.audioManager.playAudio(event.data);
+                            return;
+                        }
+
+                        if (event.data instanceof Blob) {
+                            const sample = await event.data.slice(0, 10).text();
+                            if (sample.trim().startsWith('{')) {
+                                const jsonText = await event.data.text();
+                                const data = JSON.parse(jsonText);
+                                this.handleJsonData(data);
+                                return;
+                            }
+                            
+                            const arrayBuffer = await event.data.arrayBuffer();
+                            await this.audioManager.playAudio(arrayBuffer);
+                            return;
+                        }
+                    } catch (error) {
+                        console.error("Error handling message:", error);
+                    }
+                };
+            }
+
+            handleJsonData(data) {
+                if (data.serverContent) {
+                    if (data.serverContent.inputTranscription && data.serverContent.inputTranscription.text) {
+                        const userText = data.serverContent.inputTranscription.text;
+                        if (userText.trim()) {
+                            addToTranscriptBuffered("USER", userText);
+                        }
+                    }
+                    
+                    if (data.serverContent.outputTranscription && data.serverContent.outputTranscription.text) {
+                        const geminiText = data.serverContent.outputTranscription.text;
+                        if (geminiText.trim()) {
+                            addToTranscriptBuffered("INTERVIEWER", geminiText);
+                        }
+                    }
+                    
+                    if (data.serverContent.modelTurn && data.serverContent.modelTurn.parts) {
+                        for (const part of data.serverContent.modelTurn.parts) {
+                            if (part.text) {
+                                addMessage('AI', part.text);
+                            }
+                            
+                            if (part.inlineData && part.inlineData.mimeType && part.inlineData.mimeType.includes('audio')) {
+                                try {
+                                    const binaryString = atob(part.inlineData.data);
+                                    const audioArray = new Uint8Array(binaryString.length);
+                                    for (let i = 0; i < binaryString.length; i++) {
+                                        audioArray[i] = binaryString.charCodeAt(i);
+                                    }
+                                    this.audioManager.playAudio(audioArray.buffer);
+                                } catch (audioError) {
+                                    console.error("Error decoding audio:", audioError);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            startListening() {
+                this.audioManager.startListening();
+                state.isListening = true;
+                
+                this.bufferMonitorInterval = setInterval(() => {
+                    try {
+                        finalizeBufferedTranscripts();
+                    } catch (error) {
+                        console.error("Buffer monitor error:", error);
+                    }
+                }, 500);
+            }
+
+            async generateTranscript() {
+                if (state.liveTranscript.length > 0) {
+                    showStatus('📋 Live transcript displayed', 'success');
+
+                    if (state.currentUserBuffer.trim()) {
+                        addToTranscript("USER", state.currentUserBuffer.trim());
+                        state.currentUserBuffer = "";
+                    }
+                    
+                    if (state.currentGeminiBuffer.trim()) {
+                        addToTranscript("INTERVIEWER", state.currentGeminiBuffer.trim());
+                        state.currentGeminiBuffer = "";
+                    }
+
+                    const transcriptText = state.liveTranscript.join('\n');
+                    elements.transcriptContent.textContent = transcriptText;
+                    elements.transcriptSection.classList.remove('hidden');
+                    
+                    addMessage('SYSTEM', 'Live transcript displayed');
+                    return;
+                }
+
+                if (state.conversationLog.length === 0) {
+                    showStatus('❌ No conversation to transcribe', 'error');
+                    return;
+                }
+
+                showStatus('📋 Getting transcript...', 'info');
+
+                try {
+                    state.isTranscribing = true;
+                    
+                    this.audioManager.audioOutputBuffer = [];
+                    if (this.audioManager.isPlaying) {
+                        this.audioManager.isPlaying = false;
+                        state.isSpeaking = false;
+                    }
+
+                    const transcriptPrompt = `Now provide the complete word-for-word transcript of our conversation. I am the INTERVIEWER (AI) and the human is the USER. 
+
+For each USER response, if you observed any emotion in their voice (hesitant, confident, sarcastic, frustrated, etc.), end their response with just that emotion word. If no emotion, just end normally.
+
+Format exactly as:
+INTERVIEWER: [exact words]
+USER: [exact words] hesitant
+
+Important: Keep your response under 1000 words to avoid timeouts. If the conversation is very long, just do the first part now and end with "CONTINUED IN NEXT PART" - I'll ask for the next part.`;
+
+                    const message = {
+                        clientContent: {
+                            turns: [{
+                                role: "user",
+                                parts: [{
+                                    text: transcriptPrompt
+                                }]
+                            }],
+                            turnComplete: true
+                        }
+                    };
+
+                    if (state.websocket && state.websocket.readyState === WebSocket.OPEN) {
+                        state.websocket.send(JSON.stringify(message));
+                        
+                        let transcriptText = "";
+                        let lastAudioTime = Date.now();
+                        let silenceDuration = 0;
+                        const startTime = Date.now();
+                        const maxTimeout = 90000;
+                        const silenceTolerance = 20000;
+                        
+                        const originalOnMessage = state.websocket.onmessage;
+                        
+                        const transcriptPromise = new Promise((resolve, reject) => {
+                            state.websocket.onmessage = async (event) => {
+                                try {
+                                    const currentTime = Date.now();
+                                    
+                                    if (typeof event.data === 'string') {
+                                        const data = JSON.parse(event.data);
+                                        
+                                        if (data.serverContent && data.serverContent.modelTurn && data.serverContent.modelTurn.parts) {
+                                            for (const part of data.serverContent.modelTurn.parts) {
+                                                if (part.text) {
+                                                    transcriptText += part.text;
+                                                    lastAudioTime = currentTime;
+                                                }
+                                                
+                                                if (part.inlineData && part.inlineData.mimeType && part.inlineData.mimeType.includes('audio')) {
+                                                    lastAudioTime = currentTime;
+                                                }
+                                            }
+                                            
+                                            if (data.serverContent.turnComplete) {
+                                                state.websocket.onmessage = originalOnMessage;
+                                                resolve(transcriptText);
+                                                return;
+                                            }
+                                        }
+                                        
+                                        if (data.setupComplete || data.serverContent) {
+                                            lastAudioTime = currentTime;
+                                        }
+                                    } else {
+                                        lastAudioTime = currentTime;
+                                    }
+                                    
+                                    silenceDuration = currentTime - lastAudioTime;
+                                    
+                                    if (silenceDuration > silenceTolerance && transcriptText.trim().length > 0) {
+                                        state.websocket.onmessage = originalOnMessage;
+                                        resolve(transcriptText);
+                                    } else if (currentTime - startTime > maxTimeout) {
+                                        state.websocket.onmessage = originalOnMessage;
+                                        if (transcriptText.trim().length > 0) {
+                                            resolve(transcriptText);
+                                        } else {
+                                            reject(new Error("Transcript timeout with no response"));
+                                        }
+                                    }
+                                } catch (error) {
+                                    state.websocket.onmessage = originalOnMessage;
+                                    reject(error);
+                                }
+                            };
+                        });
+                        
+                        const finalTranscript = await transcriptPromise;
+                        
+                        if (finalTranscript && finalTranscript.trim()) {
+                            const parsedTranscript = this.parseTranscriptEmotions(finalTranscript);
+                            elements.transcriptContent.textContent = parsedTranscript;
+                            elements.transcriptSection.classList.remove('hidden');
+                            
+                            showStatus('✅ Transcript generated', 'success');
+                            addMessage('SYSTEM', 'Transcript generated successfully');
+                        } else {
+                            throw new Error("Empty transcript received");
+                        }
+                    } else {
+                        throw new Error("WebSocket not connected");
+                    }
+                } catch (error) {
+                    showStatus('❌ Transcript failed: ' + error.message, 'error');
+                } finally {
+                    state.isTranscribing = false;
+                }
+            }
+
+            parseTranscriptEmotions(transcriptText) {
+                const emotionWords = new Set([
+                    'hesitant', 'confident', 'sarcastic', 'frustrated', 'enthusiastic', 
+                    'stressed', 'reluctant', 'thoughtful', 'animated', 'quiet', 
+                    'rushed', 'emphatic', 'nervous', 'excited', 'annoyed', 'careful',
+                    'uncertain', 'sure', 'worried', 'calm', 'angry', 'happy', 'sad'
+                ]);
+                
+                const lines = transcriptText.split('\n');
+                const processedLines = [];
+                
+                for (const line of lines) {
+                    if (line.trim().startsWith('USER:')) {
+                        const words = line.split(' ');
+                        if (words.length > 1) {
+                            const lastWord = words[words.length - 1].toLowerCase().replace(/[.,!?]/g, '');
+                            if (emotionWords.has(lastWord)) {
+                                const userText = words.slice(0, -1).join(' ');
+                                processedLines.push(`${userText} [${lastWord}]`);
+                            } else {
+                                processedLines.push(line);
+                            }
+                        } else {
+                            processedLines.push(line);
+                        }
+                    } else {
+                        processedLines.push(line);
+                    }
+                }
+                
+                return processedLines.join('\n');
+            }
+
+            stop() {
+                state.shutdownRequested = true;
+                state.isListening = false;
+                
+                if (this.bufferMonitorInterval) {
+                    clearInterval(this.bufferMonitorInterval);
+                }
+                
+                if (state.currentUserBuffer.trim()) {
+                    addToTranscript("USER", state.currentUserBuffer.trim());
+                    state.currentUserBuffer = "";
+                }
+                
+                if (state.currentGeminiBuffer.trim()) {
+                    addToTranscript("INTERVIEWER", state.currentGeminiBuffer.trim());
+                    state.currentGeminiBuffer = "";
+                }
+                
+                if (this.audioManager) {
+                    this.audioManager.stopListening();
+                }
+                
+                if (state.websocket) {
+                    state.websocket.close();
+                    state.websocket = null;
+                }
+                
+                showStatus('🔚 Session ended', 'info');
+            }
+        }
+
+        class VoiceInterviewer {
+            constructor() {
+                this.client = null;
+            }
+
+            async start() {
+                const apiKey = elements.apiKey.value.trim();
+                const voice = elements.voiceSelect.value;
+                const systemPrompt = elements.initialPrompt.value.trim();
+
+                if (!apiKey) {
+                    showStatus('❌ Please enter your Gemini API key', 'error');
+                    return false;
+                }
+
+                saveApiKey(apiKey);
+
+                this.client = new GeminiLiveClient(apiKey, voice, systemPrompt);
+                const connected = await this.client.connect();
+
+                if (connected) {
+                    elements.setupSection.classList.add('hidden');
+                    elements.mainInterface.classList.remove('hidden');
+                    return true;
+                }
+
+                return false;
+            }
+
+            async requestTranscript() {
+                if (this.client) {
+                    await this.client.generateTranscript();
+                } else {
+                    showStatus('❌ No active session', 'error');
+                }
+            }
+
+            stop() {
+                if (this.client) {
+                    this.client.stop();
+                }
+                
+                elements.setupSection.classList.remove('hidden');
+                elements.mainInterface.classList.add('hidden');
+                elements.transcriptSection.classList.add('hidden');
+                elements.conversationLog.innerHTML = '';
+                
+                state.conversationLog = [];
+                state.liveTranscript = [];
+                state.currentUserBuffer = "";
+                state.currentGeminiBuffer = "";
+                state.shutdownRequested = false;
+                this.client = null;
+            }
+
+            downloadTranscript() {
+                let transcript = '';
+                if (state.liveTranscript.length > 0) {
+                    transcript = state.liveTranscript.join('\n');
+                } else {
+                    transcript = elements.transcriptContent.textContent;
+                }
+                
+                if (!transcript) {
+                    showStatus('❌ No transcript to download', 'error');
+                    return;
+                }
+
+                const blob = new Blob([transcript], { type: 'text/plain' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `transcript_${new Date().toISOString().slice(0, 19).replace(/:/g, '-')}.txt`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            }
+        }
+
+        const app = new VoiceInterviewer();
+        loadApiKey();
+        loadPrompt(); // Auto-load saved prompt
+
+        // Prompt auto-save functionality
+        let promptSaveTimeout;
+        elements.initialPrompt.addEventListener('input', () => {
+            // Debounce saving - wait 1 second after user stops typing
+            clearTimeout(promptSaveTimeout);
+            promptSaveTimeout = setTimeout(() => {
+                handlePromptChange();
+            }, 1000);
+        });
+
+        // Also save when user leaves the textarea
+        elements.initialPrompt.addEventListener('blur', handlePromptChange);
+
+        // File upload handling
+        elements.loadPromptBtn.addEventListener('click', loadPromptFromFile);
+        elements.clearPromptBtn.addEventListener('click', clearPrompt);
+        elements.promptFile.addEventListener('change', handlePromptFile);
+
+        elements.startBtn.addEventListener('click', async () => {
+            elements.startBtn.disabled = true;
+            elements.startBtn.textContent = '🔄 Starting...';
+
+            try {
+                await app.start();
+            } catch (error) {
+                showStatus('❌ Failed to start: ' + error.message, 'error');
+            }
+            
+            elements.startBtn.disabled = false;
+            elements.startBtn.textContent = '🚀 Start Voice Interview';
+        });
+
+        elements.transcriptBtn.addEventListener('click', async () => {
+            try {
+                if (app.client) {
+                    await app.client.generateTranscript();
+                } else {
+                    showStatus('❌ No active session', 'error');
+                }
+            } catch (error) {
+                showStatus('❌ Transcript failed: ' + error.message, 'error');
+            }
+        });
+
+        elements.stopBtn.addEventListener('click', () => {
+            app.stop();
+        });
+
+        elements.downloadTranscript.addEventListener('click', () => {
+            app.downloadTranscript();
+        });
+
+        window.addEventListener('beforeunload', () => {
+            app.stop();
+        });
+
+        document.addEventListener('keydown', (event) => {
+            if (event.key.toLowerCase() === 't' && !event.target.matches('input, textarea')) {
+                event.preventDefault();
+                app.requestTranscript();
+            }
+            else if (event.key.toLowerCase() === 'q' && !event.target.matches('input, textarea')) {
+                event.preventDefault();
+                app.stop();
+            }
+        });
+    </script>
+    <script type="module">
+    // Import the functions you need from the SDKs you need
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-app.js";
+    import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.1.0/firebase-analytics.js";
+    // TODO: Add SDKs for Firebase products that you want to use
+    // https://firebase.google.com/docs/web/setup#available-libraries
+
+    // Your web app's Firebase configuration
+    // For Firebase JS SDK v7.20.0 and later, measurementId is optional
+    const firebaseConfig = {
+        apiKey: "AIzaSyAGZlicmLuLtiSPoE6qipI6OkYvuTohR_8",
+        authDomain: "vovc-interview.firebaseapp.com",
+        projectId: "vovc-interview",
+        storageBucket: "vovc-interview.firebasestorage.app",
+        messagingSenderId: "801731662896",
+        appId: "1:801731662896:web:a7bb4c0ef839541c7189f5",
+        measurementId: "G-4VTF0DNEBY"
+    };
+
+    // Initialize Firebase
+    const app = initializeApp(firebaseConfig);
+    const analytics = getAnalytics(app);
+    </script>
+</body>
+</html>
