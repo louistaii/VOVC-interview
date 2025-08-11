@@ -415,9 +415,90 @@ class GeminiLiveClient {
         this.audioManager = new AudioManager();
     }
 
+    updateStatusDisplay(message, type = 'error') {
+        // Ensure the main interface is visible when showing status messages
+        const setupSection = document.getElementById('setupSection');
+        const mainInterface = document.getElementById('mainInterface');
+        
+        if (mainInterface && mainInterface.classList.contains('hidden')) {
+            setupSection?.classList.add('hidden');
+            mainInterface.classList.remove('hidden');
+        }
+        
+        // Update the status element
+        const statusElement = document.getElementById('statusDisplay');
+        if (statusElement) {
+            statusElement.textContent = message;
+            statusElement.className = `status status-${type}`;
+            
+            // Force a repaint
+            statusElement.style.display = 'none';
+            statusElement.offsetHeight;
+            statusElement.style.display = '';
+        }
+    }
+
+    isSSLCertificateError(error) {
+        if (!error) return false;
+        
+        // Handle WebSocket error events
+        if (error instanceof Event && error.type === 'error') {
+            return true; // Assume SSL issue for WebSocket error events
+        }
+        
+        const errorMessage = error.message ? error.message.toLowerCase() : '';
+        const errorString = error.toString().toLowerCase();
+        
+        // Common SSL/certificate error patterns
+        const sslErrorPatterns = [
+            'certificate', 'ssl', 'tls', 'handshake', 'cert', 'security',
+            'net::err_cert', 'net::err_ssl', 'sec_error', 'ssl_error',
+            'certificate_verify_failed', 'self signed certificate',
+            'unable to verify the first certificate', 'certificate has expired',
+            'hostname/ip does not match certificate', 'zscaler',
+            'connection failed', 'network error'
+        ];
+        
+        return sslErrorPatterns.some(pattern => 
+            errorMessage.includes(pattern) || errorString.includes(pattern)
+        );
+    }
+
+    handleConnectionError(error, websocketEvent = null) {
+        // Handle WebSocket error events specifically
+        if (error instanceof Event && error.type === 'error') {
+            this.updateStatusDisplay('🚫 Connection failed - Turn off ZScaler and try again', 'error');
+            return;
+        }
+        
+        // Check if it's an SSL certificate error
+        if (this.isSSLCertificateError(error)) {
+            this.updateStatusDisplay('🚫 SSL Certificate Error - Turn off ZScaler and try again', 'error');
+            return;
+        }
+        
+        // Check WebSocket close codes that might indicate SSL issues
+        if (websocketEvent && websocketEvent.code) {
+            switch (websocketEvent.code) {
+                case 1015: // TLS handshake failure
+                    this.updateStatusDisplay('🚫 TLS Handshake Failed - Turn off ZScaler and try again', 'error');
+                    return;
+                case 1006: // Abnormal closure (often SSL related)
+                    this.updateStatusDisplay('❌ Connection lost unexpectedly - Turn off ZScaler and try again', 'error');
+                    return;
+                case 1002: // Protocol error
+                    this.updateStatusDisplay('❌ Protocol error - Turn off ZScaler if using corporate network', 'error');
+                    return;
+            }
+        }
+        
+        // Default error handling
+        this.updateStatusDisplay('❌ Connection failed - Check network/ZScaler settings', 'error');
+    }
+
     async connect() {
         try {
-            showStatus('🔄 Connecting to Gemini Live...', 'info');
+            this.updateStatusDisplay('🔄 Connecting to Gemini Live...', 'info');
 
             const audioReady = await this.audioManager.initialize();
             if (!audioReady) return false;
@@ -426,11 +507,20 @@ class GeminiLiveClient {
             state.websocket = new WebSocket(wsUrl);
 
             return new Promise((resolve, reject) => {
+                let connectionResolved = false;
+                
                 const timeout = setTimeout(() => {
-                    reject(new Error('Connection timeout'));
+                    if (!connectionResolved && state.websocket && state.websocket.readyState !== WebSocket.OPEN) {
+                        this.updateStatusDisplay('⏱️ Connection timeout - Turn off ZScaler and try again', 'error');
+                        state.websocket.close();
+                        connectionResolved = true;
+                        reject(new Error('Connection timeout'));
+                    }
                 }, 10000);
 
                 state.websocket.onopen = () => {
+                    if (connectionResolved) return;
+                    connectionResolved = true;
                     clearTimeout(timeout);
                     
                     const setupMessage = {
@@ -452,8 +542,7 @@ class GeminiLiveClient {
                     };
 
                     state.websocket.send(JSON.stringify(setupMessage));
-
-                    showStatus('✅ Connected! Start talking...', 'success');
+                    this.updateStatusDisplay('✅ Connected! Start talking...', 'success');
                     addMessage('SYSTEM', 'Assistant connected with live transcription');
 
                     setTimeout(() => {
@@ -462,32 +551,47 @@ class GeminiLiveClient {
 
                     this.startListening();
                     this.setupMessageHandling();
-
                     resolve(true);
                 };
 
-                state.websocket.onerror = (error) => {
+                state.websocket.onerror = (errorEvent) => {
+                    if (connectionResolved) return;
+                    connectionResolved = true;
                     clearTimeout(timeout);
-                    showStatus('❌ Connection failed', 'error');
-                    reject(error);
+                    
+                    this.updateStatusDisplay('🚫 Connection failed - Turn off ZScaler and try again', 'error');
+                    this.handleConnectionError(errorEvent);
+                    reject(errorEvent);
                 };
 
                 state.websocket.onclose = (event) => {
-                    if (event.code === 1000) {
-                        showStatus('🔌 Session ended normally', 'info');
-                    } else if (event.code === 1006) {
-                        showStatus('❌ Connection lost unexpectedly', 'error');
-                    } else if (event.code === 1007) {
-                        showStatus('❌ Invalid audio format sent', 'error');
-                    } else if (event.code === 1008) {
-                        showStatus('❌ Policy violation or invalid API key', 'error');
+                    if (connectionResolved) return;
+                    connectionResolved = true;
+                    clearTimeout(timeout);
+                    
+                    // Handle close events with ZScaler-specific messages
+                    if (event.code === 1006) {
+                        this.updateStatusDisplay('❌ Connection failed (1006) - Turn off ZScaler and try again', 'error');
+                    } else if (event.code === 1015) {
+                        this.updateStatusDisplay('🚫 TLS Handshake Failed - Turn off ZScaler and try again', 'error');
+                    } else if (event.code === 1002) {
+                        this.updateStatusDisplay('❌ Protocol error - Turn off ZScaler if using corporate network', 'error');
+                    } else if (event.code === 1011) {
+                        this.updateStatusDisplay('❌ Server error - Check API key and try again', 'error');
+                    } else if (event.wasClean === false) {
+                        this.updateStatusDisplay('🚫 Connection dropped - Turn off ZScaler and try again', 'error');
                     } else {
-                        showStatus(`❌ Connection closed (${event.code})`, 'error');
+                        this.updateStatusDisplay(`❌ Connection failed (${event.code}) - Check ZScaler settings`, 'error');
+                    }
+                    
+                    if (!state.shutdownRequested) {
+                        reject(new Error(`Connection closed with code ${event.code}`));
                     }
                 };
             });
         } catch (error) {
-            showStatus('❌ Connection failed: ' + error.message, 'error');
+            this.updateStatusDisplay('❌ Setup failed - Turn off ZScaler and try again', 'error');
+            this.handleConnectionError(error);
             return false;
         }
     }
@@ -659,16 +763,25 @@ class VoiceInterviewer {
 
         saveApiKey(apiKey);
 
+        // Show main interface immediately when starting connection attempt
+        elements.setupSection.classList.add('hidden');
+        elements.mainInterface.classList.remove('hidden');
+
         this.client = new GeminiLiveClient(apiKey, voice, model, systemPrompt);
-        const connected = await this.client.connect();
-
-        if (connected) {
-            elements.setupSection.classList.add('hidden');
-            elements.mainInterface.classList.remove('hidden');
-            return true;
+        
+        try {
+            const connected = await this.client.connect();
+            return connected;
+        } catch (error) {
+            // Make sure error is visible in main interface
+            const statusElement = document.getElementById('statusDisplay');
+            if (statusElement) {
+                statusElement.textContent = '🚫 Connection failed - Turn off ZScaler and try again';
+                statusElement.className = 'status status-error';
+            }
+            
+            return false;
         }
-
-        return false;
     }
 
     stop() {
@@ -734,19 +847,39 @@ elements.loadPromptBtn.addEventListener('click', loadPromptFromFile);
 elements.clearPromptBtn.addEventListener('click', clearPrompt);
 elements.promptFile.addEventListener('change', handlePromptFile);
 
-elements.startBtn.addEventListener('click', async () => {
-    elements.startBtn.disabled = true;
-    elements.startBtn.textContent = '🔄 Starting...';
+function setupStartButtonHandler() {
+    elements.startBtn.addEventListener('click', async () => {
+        elements.startBtn.disabled = true;
+        elements.startBtn.textContent = '🔄 Starting...';
 
-    try {
-        await app.start();
-    } catch (error) {
-        showStatus('❌ Failed to start: ' + error.message, 'error');
-    }
-    
-    elements.startBtn.disabled = false;
-    elements.startBtn.textContent = '🚀 Start Voice Interview';
-});
+        try {
+            const success = await app.start();
+            
+            if (!success) {
+                // If start() returns false, it means connection failed
+                // Make sure we're showing the main interface so error is visible
+                elements.setupSection.classList.add('hidden');
+                elements.mainInterface.classList.remove('hidden');
+            }
+        } catch (error) {
+            // Show main interface and display error
+            elements.setupSection.classList.add('hidden');
+            elements.mainInterface.classList.remove('hidden');
+            
+            // Update status directly
+            const statusElement = document.getElementById('statusDisplay');
+            if (statusElement) {
+                statusElement.textContent = '❌ Failed to start - Turn off ZScaler and try again';
+                statusElement.className = 'status status-error';
+            }
+        }
+        
+        elements.startBtn.disabled = false;
+        elements.startBtn.textContent = '🚀 Start Voice Interview';
+    });
+}
+
+setupStartButtonHandler();
 
 elements.transcriptBtn.addEventListener('click', () => {
     elements.transcriptSection.classList.toggle('hidden');
